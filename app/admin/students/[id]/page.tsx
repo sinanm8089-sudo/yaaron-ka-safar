@@ -19,6 +19,7 @@ import {
 import type { Payment } from '@/types';
 import { AddPaymentForm } from './add-payment-form';
 import { DeletePaymentButton } from './delete-payment-button';
+import { ChangePasswordForm } from './change-password-form';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -29,7 +30,7 @@ async function getStudentDetails(id: string) {
 
   const { data: student, error } = await supabase
     .from('students')
-    .select('*')
+    .select('*, profiles(user_id)')
     .eq('id', id)
     .single();
 
@@ -105,6 +106,9 @@ export default async function StudentDetailPage({ params }: Props) {
             </div>
           </div>
         </div>
+        {student.profiles?.user_id && (
+          <ChangePasswordForm userId={student.profiles.user_id} />
+        )}
       </div>
 
       {/* Payment Summary */}
