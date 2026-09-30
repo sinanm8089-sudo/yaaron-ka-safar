@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/shared';
 import Link from 'next/link';
 import { Plus, Upload, Search, ChevronRight } from 'lucide-react';
 import type { Student, Payment } from '@/types';
+import { DeleteStudentButton } from './delete-student-button';
 
 async function getStudents() {
   const supabase = await createClient();
@@ -65,12 +66,13 @@ export default async function StudentsPage() {
       {/* Student List */}
       <div className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
         {/* Table Header (desktop) */}
-        <div className="hidden lg:grid lg:grid-cols-[40px_1fr_120px_120px_120px_40px] gap-4 px-5 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)]">
+        <div className="hidden lg:grid lg:grid-cols-[40px_1fr_120px_120px_120px_40px_40px] gap-4 px-5 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)]">
           <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase">#</span>
           <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase">Name</span>
           <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase text-right">Fee</span>
           <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase text-right">Paid</span>
           <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase text-right">Balance</span>
+          <span></span>
           <span></span>
         </div>
 
@@ -88,7 +90,7 @@ export default async function StudentsPage() {
               <Link
                 key={student.id}
                 href={`/admin/students/${student.id}`}
-                className="flex items-center gap-4 px-5 py-4 hover:bg-[var(--color-surface-elevated)] transition-colors lg:grid lg:grid-cols-[40px_1fr_120px_120px_120px_40px]"
+                className="flex items-center gap-4 px-5 py-4 hover:bg-[var(--color-surface-elevated)] transition-colors lg:grid lg:grid-cols-[40px_1fr_120px_120px_120px_40px_40px]"
               >
                 {/* Serial */}
                 <span className="text-sm text-[var(--color-text-muted)] hidden lg:block">
@@ -135,6 +137,11 @@ export default async function StudentsPage() {
 
                 {/* Arrow */}
                 <ChevronRight className="w-4 h-4 text-[var(--color-text-muted)] hidden lg:block" />
+                
+                {/* Delete Button */}
+                <div className="hidden lg:block">
+                  <DeleteStudentButton studentId={student.id} studentName={student.full_name} />
+                </div>
               </Link>
             ))}
           </div>
