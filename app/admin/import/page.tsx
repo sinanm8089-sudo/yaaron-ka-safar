@@ -7,14 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/shared';
 import { formatCurrency } from '@/lib/utils';
-import { Upload, FileSpreadsheet, AlertTriangle, Check, ArrowLeft, Loader2 } from 'lucide-react';
+import { Upload, FileSpreadsheet, AlertTriangle, Check, ArrowLeft, Loader2, Download } from 'lucide-react';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
+import { importStudentsAction } from './actions';
 
 interface ParsedStudent {
   row: number;
   name: string;
-  admission_number?: string;
+  admission_number: string;
+  password?: string;
   class_name?: string;
   total_amount: number;
   amount_paid: number;
@@ -96,10 +98,15 @@ export default function ImportPage() {
           errors.push('Paid amount exceeds total');
         }
 
+        const firstName = rawName.split(' ')[0].toLowerCase().replace(/[^a-z]/g, '');
+        const defaultPassword = firstName.length >= 3 ? `${firstName}123` : `pass1234`;
+        const autoAdmission = rawAdmission || `STU${Math.floor(1000 + Math.random() * 9000)}`;
+
         return {
           row: index + 2, // +2 for header row + 0-index
           name: rawName,
-          admission_number: rawAdmission || undefined,
+          admission_number: autoAdmission,
+          password: defaultPassword,
           class_name: rawClass || undefined,
           total_amount: isNaN(rawTotal) ? 6450 : rawTotal,
           amount_paid: isNaN(rawPaid) ? 0 : rawPaid,
@@ -120,103 +127,25 @@ export default function ImportPage() {
     setImportError(null);
 
     const validStudents = students.filter((s) => s.errors.length === 0);
-    const supabase = createClient();
 
     try {
-      // Get the trip ID
-      const { data: trip } = await supabase.from('trips').select('id').single();
-      if (!trip) {
-        setImportError('No trip found. Please create a trip first.');
+      const result = await importStudentsAction(validStudents.map(s => ({
+        row: s.row,
+        name: s.name,
+        admission_number: s.admission_number,
+        password: s.password,
+        class_name: s.class_name,
+        total_amount: s.total_amount,
+        amount_paid: s.amount_paid
+      })));
+
+      if (result.error) {
+        setImportError(result.error);
         setStep('preview');
         return;
       }
 
-      let imported = 0;
-
-      for (const student of validStudents) {
-        // Check for existing student
-        let existingStudent = null;
-
-        if (student.admission_number) {
-          const { data } = await supabase
-            .from('students')
-            .select('id')
-            .eq('admission_number', student.admission_number)
-            .single();
-          existingStudent = data;
-        }
-
-        if (!existingStudent) {
-          const { data } = await supabase
-            .from('students')
-            .select('id')
-            .eq('full_name', student.name)
-            .eq('trip_id', trip.id)
-            .single();
-          existingStudent = data;
-        }
-
-        if (existingStudent) {
-          // Update existing
-          await supabase
-            .from('students')
-            .update({
-              full_name: student.name,
-              admission_number: student.admission_number,
-              class_name: student.class_name,
-              trip_fee: student.total_amount,
-              serial_number: student.row - 1,
-            })
-            .eq('id', existingStudent.id);
-
-          // Check if initial payment already exists
-          if (student.amount_paid > 0) {
-            const { data: existingPayments } = await supabase
-              .from('payments')
-              .select('id')
-              .eq('student_id', existingStudent.id);
-
-            if (!existingPayments || existingPayments.length === 0) {
-              await supabase.from('payments').insert({
-                student_id: existingStudent.id,
-                amount: student.amount_paid,
-                payment_method: 'cash',
-                payment_date: new Date().toISOString().split('T')[0],
-                notes: 'Imported from Excel',
-              });
-            }
-          }
-        } else {
-          // Insert new student
-          const { data: newStudent } = await supabase
-            .from('students')
-            .insert({
-              full_name: student.name,
-              admission_number: student.admission_number,
-              class_name: student.class_name,
-              trip_id: trip.id,
-              trip_fee: student.total_amount,
-              serial_number: student.row - 1,
-            })
-            .select('id')
-            .single();
-
-          // Insert initial payment if paid
-          if (newStudent && student.amount_paid > 0) {
-            await supabase.from('payments').insert({
-              student_id: newStudent.id,
-              amount: student.amount_paid,
-              payment_method: 'cash',
-              payment_date: new Date().toISOString().split('T')[0],
-              notes: 'Imported from Excel',
-            });
-          }
-        }
-
-        imported++;
-        setImportedCount(imported);
-      }
-
+      setImportedCount(result.count || 0);
       setStep('done');
     } catch (err) {
       setImportError('Import failed. Please try again.');
@@ -227,8 +156,23 @@ export default function ImportPage() {
   const validCount = students.filter((s) => s.errors.length === 0).length;
   const invalidCount = students.filter((s) => s.errors.length > 0).length;
 
+  const exportCredentials = () => {
+    const csvContent = [
+      ['Name', 'Admission No (ID)', 'Password'],
+      ...students.map(s => [s.name, s.admission_number, s.password])
+    ].map(e => e.join(",")).join("\n");
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', 'student_credentials.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-20 lg:pb-0">
+    <div className="max-w-4xl mx-auto space-y-6 pb-20 lg:pb-0">
       {/* Back */}
       <Link
         href="/admin/students"
@@ -308,6 +252,8 @@ export default function ImportPage() {
                   <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)]">
                     <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase">#</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase">Name</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase">ID</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase">Password</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase">Total</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase">Paid</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase">Status</th>
@@ -321,6 +267,8 @@ export default function ImportPage() {
                     >
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">{student.row}</td>
                       <td className="px-4 py-3 font-medium text-[var(--color-text)]">{student.name || '—'}</td>
+                      <td className="px-4 py-3 text-[var(--color-text-secondary)] font-mono text-xs">{student.admission_number}</td>
+                      <td className="px-4 py-3 text-[var(--color-text-secondary)] font-mono text-xs">{student.password}</td>
                       <td className="px-4 py-3 text-right text-[var(--color-text-secondary)]">
                         {formatCurrency(student.total_amount)}
                       </td>
@@ -392,6 +340,9 @@ export default function ImportPage() {
             Successfully imported {importedCount} students with payment data.
           </p>
           <div className="flex gap-3 justify-center">
+            <Button variant="secondary" icon={<Download className="w-4 h-4" />} onClick={exportCredentials}>
+              Download Passwords
+            </Button>
             <Button variant="secondary" onClick={() => { setStep('upload'); setStudents([]); setFile(null); setImportedCount(0); }}>
               Import Another
             </Button>
