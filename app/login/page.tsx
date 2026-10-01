@@ -82,7 +82,7 @@ export default function LoginPage() {
             <Input
               label="Admission Number"
               type="text"
-              placeholder="e.g. 3467"
+              placeholder="e.g. IVS3-001"
               icon={<Bus className="w-4 h-4" />}
               error={errors.admission_number?.message}
               {...register('admission_number')}

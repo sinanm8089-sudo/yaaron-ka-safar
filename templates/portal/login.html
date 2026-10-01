@@ -1,0 +1,18 @@
+{% extends 'portal/base.html' %}
+{% block title %}Sign in · Yaaron Ka Safar{% endblock %}
+{% block public_content %}
+<main class="login-page">
+  <section class="login-panel">
+    <div class="login-brand"><span class="brand-mark brand-mark-large">YS</span><p class="eyebrow">GOA · DANDELI · 2026</p></div>
+    <h1>YAARON KA<br><span>SAFAR</span></h1>
+    <p class="login-copy">Trip operations and student services</p>
+    <form method="post" class="form-stack">{% csrf_token %}
+      <label>Admission number<input name="admission_number" autocomplete="username" placeholder="IVS3-001" required autofocus></label>
+      <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
+      <button class="button button-primary" type="submit">Sign in <span aria-hidden="true">→</span></button>
+    </form>
+    <p class="login-foot">Contact the trip administrator if you need account help.</p>
+  </section>
+  <aside class="login-aside"><span class="route-stamp">01 / 05</span><p>One journey.<br>Every detail<br>in good hands.</p><span class="aside-caption">CALICUT → DANDELI → GOA</span></aside>
+</main>
+{% endblock %}

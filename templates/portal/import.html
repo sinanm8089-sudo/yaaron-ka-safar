@@ -1,0 +1,12 @@
+{% extends 'portal/base.html' %}
+{% block title %}Import Students · Yaaron Ka Safar{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">ADMIN WORKSPACE</p><h1>Import Students</h1><p>Sync roster data and student logins from an Excel workbook.</p></div><a class="text-link" href="/admin/students/">Back to students</a></div>
+<section class="form-panel">
+  <div class="notice notice-warning"><strong>Password reset:</strong> every listed student's password will be set to <code>12345678</code>. Send this temporary password securely and change it after initial sign-in.</div>
+  <form method="post" enctype="multipart/form-data" class="form-stack">{% csrf_token %}
+    <label>Excel workbook (.xlsx)<input type="file" name="workbook" accept=".xlsx" required></label>
+    <button class="button button-primary" type="submit">Sync student records</button>
+  </form>
+</section>
+{% endblock %}

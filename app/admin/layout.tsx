@@ -23,10 +23,12 @@ import {
   ChevronRight,
   ClipboardList,
   FileText,
+  UserCircle,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/profiles', label: 'Profiles', icon: UserCircle },
   { href: '/admin/students', label: 'Students', icon: Users },
   { href: '/admin/schedule', label: 'Schedule', icon: Calendar },
   { href: '/admin/activities', label: 'Activities', icon: Zap },

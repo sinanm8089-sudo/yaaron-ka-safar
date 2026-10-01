@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Yaaron Ka Safar
 
-## Getting Started
+Django server-rendered trip operations portal. Supabase Auth and the existing Supabase tables remain the identity and data services, so the existing student, admin, and principal accounts are preserved.
 
-First, run the development server:
+## Run locally
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+1. Use Python 3.12 or later and install dependencies:
+
+```powershell
+py -m pip install -r requirements.txt
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Copy `.env.local.example` to `.env.local` and fill in the existing Supabase project URL and public key. Keep the server-only secret out of source control.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Start Django:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```powershell
+py manage.py migrate
+py manage.py runserver
+```
 
-## Learn More
+Open `http://127.0.0.1:8000/`.
 
-To learn more about Next.js, take a look at the following resources:
+The project includes existing Next.js files only as a temporary migration/reference copy. Django is the intended web entry point.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Supabase settings
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Set these variables in `.env.local` for development and in the hosting provider's server environment for deployment:
 
-## Deploy on Vercel
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` (or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`)
+- `SUPABASE_SERVICE_ROLE_KEY` (server-only; only required for Auth Admin operations such as student account provisioning)
+- `DJANGO_SECRET_KEY` (generate a unique, private value for each environment)
+- `DJANGO_ALLOWED_HOSTS` (comma-separated hostnames for deployment)
+- `DJANGO_DEBUG=false` in production
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The student attendance-request and student-report features also need `supabase/migrations/20261001052254_student_attendance_requests_and_reports.sql` applied to the connected Supabase database before use. That migration is not applied automatically by Django.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Tests and deployment
+
+Run project checks and tests with:
+
+```powershell
+py manage.py check
+py manage.py test portal
+```
+
+For a Django-compatible host, use `config.wsgi:application` as the WSGI entry point and install from `requirements.txt`. Set the environment variables above in the host dashboard. Vercel deployments need a Django-compatible Python runtime/build configuration; they will not deploy this app through Next.js defaults.

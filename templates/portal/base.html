@@ -1,0 +1,37 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f4ee">
+  <title>{% block title %}Yaaron Ka Safar{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'portal/app.css' %}">
+</head>
+<body>
+{% if request.session.profile %}
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="/"><span class="brand-mark">YS</span><span><strong>YAARON KA SAFAR</strong><small>{{ request.session.profile.full_name }}</small></span></a>
+    <nav class="side-nav" aria-label="Main navigation">
+      {% if request.session.profile.role == 'admin' %}
+      <a href="/admin/">Overview</a><a href="/admin/profiles/">Profiles</a><a href="/admin/students/">Students</a><a href="/admin/schedule/">Schedule</a><a href="/admin/activities/">Activities</a><a href="/admin/attendance/">Attendance</a><a href="/admin/attendance-requests/">Attendance requests</a><a href="/admin/student-reports/">Student reports</a><a href="/admin/funds/">Trip fund</a><a href="/admin/photos/">Photos</a><a href="/admin/notifications/">Notifications</a><a href="/admin/settings/">Settings</a>
+      {% elif request.session.profile.role == 'student' %}
+      <a href="/student/">My trip</a><a href="/student/schedule/">Schedule</a><a href="/student/attendance/">Attendance</a><a href="/student/attendance-request/">Attendance request</a><a href="/student/report/">Submit report</a><a href="/student/payments/">Payments</a><a href="/student/photos/">Photos</a><a href="/student/notifications/">Notifications</a><a href="/student/profile/">Profile</a>
+      {% else %}
+      <a href="/principal/">Overview</a><a href="/principal/schedule/">Schedule</a><a href="/principal/activities/">Activities</a><a href="/principal/photos/">Photos</a>
+      {% endif %}
+    </nav>
+    <form action="{% url 'logout' %}" method="post" class="sidebar-footer">{% csrf_token %}<button class="nav-signout" type="submit">Sign out</button></form>
+  </aside>
+  <main class="main-area"><header class="topbar"><span class="eyebrow">TRIP OPERATIONS</span><span class="role-pill">{{ request.session.profile.role|title }}</span></header><section class="page-content">
+    {% for message in messages %}<div class="notice notice-{{ message.tags|default:'info' }}" role="status">{{ message }}</div>{% endfor %}
+    {% block content %}{% endblock %}
+  </section></main>
+</div>
+{% else %}
+  {% for message in messages %}<div class="notice notice-{{ message.tags|default:'info' }} login-notice" role="status">{{ message }}</div>{% endfor %}
+  {% block public_content %}{% endblock %}
+{% endif %}
+</body>
+</html>

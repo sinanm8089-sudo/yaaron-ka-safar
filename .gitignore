@@ -12,6 +12,10 @@
 
 # testing
 /coverage
+/__pycache__/
+*.py[cod]
+/django-sessions.sqlite3
+/staticfiles/
 
 # next.js
 /.next/

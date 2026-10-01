@@ -60,59 +60,65 @@ export default function ImportPage() {
       if (!sheetName) sheetName = workbook.SheetNames[0];
 
       const sheet = workbook.Sheets[sheetName];
-      const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+      const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
+      const normalize = (value: unknown) => String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const headerIndex = rows.findIndex((row) => {
+        const headers = row.map(normalize);
+        return headers.some((header) => ['name', 'student', 'fullname'].some((token) => header.includes(token)))
+          && headers.some((header) => ['total', 'fee', 'amount'].some((token) => header.includes(token)))
+          && headers.some((header) => ['paid', 'received', 'collected'].some((token) => header.includes(token)));
+      });
 
-      if (data.length === 0) {
+      if (headerIndex < 0) {
         setImportError('No data found in the spreadsheet.');
         return;
       }
 
-      // Auto-detect columns by checking keys
-      const sampleRow = data[0];
-      const keys = Object.keys(sampleRow);
+      const headers = rows[headerIndex].map(normalize);
+      const findColumn = (patterns: string[]) => headers.findIndex((header) =>
+        patterns.some((pattern) => header.includes(pattern))
+      );
 
-      const findKey = (patterns: string[]) =>
-        keys.find((k) =>
-          patterns.some((p) => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(p))
-        );
+      const nameColumn = findColumn(['name', 'student', 'fullname']);
+      const serialColumn = findColumn(['serial', 'sno', 'slno', 'rollno']);
+      const admissionColumn = findColumn(['admission', 'admno']);
+      const classColumn = findColumn(['class', 'grade', 'section']);
+      const totalColumn = findColumn(['total', 'fee', 'tripamount', 'amount']);
+      const paidColumn = findColumn(['paid', 'received', 'collected', 'advance']);
 
-      const nameKey = findKey(['name', 'student', 'fullname']) ?? keys[1] ?? keys[0];
-      const admissionKey = findKey(['admission', 'admno', 'rollno', 'slno', 'serialno']);
-      const classKey = findKey(['class', 'grade', 'section']);
-      const totalKey = findKey(['total', 'fee', 'tripamount', 'amount']);
-      const paidKey = findKey(['paid', 'received', 'collected', 'advance']);
-
-      const parsed: ParsedStudent[] = data.map((row, index) => {
-        const rawName = String(row[nameKey] ?? '').trim();
-        const rawAdmission = admissionKey ? String(row[admissionKey] ?? '').trim() : undefined;
-        const rawClass = classKey ? String(row[classKey] ?? '').trim() : undefined;
-        const rawTotal = totalKey ? Number(row[totalKey]) : 6450;
-        const rawPaid = paidKey ? Number(row[paidKey]) : 0;
+      const parsed: ParsedStudent[] = rows.slice(headerIndex + 1).map((row, index) => {
+        const rawName = String(row[nameColumn] ?? '').trim();
+        const rawAdmission = admissionColumn >= 0 ? String(row[admissionColumn] ?? '').trim() : '';
+        const rawSerial = serialColumn >= 0 ? Number(row[serialColumn]) : index + 1;
+        const rawClass = classColumn >= 0 ? String(row[classColumn] ?? '').trim() : undefined;
+        const rawTotal = totalColumn >= 0 ? Number(row[totalColumn]) : 6450;
+        const rawPaid = paidColumn >= 0 ? Number(row[paidColumn]) : 0;
 
         const errors: string[] = [];
 
+        if (rawName.toLowerCase() === 'total') return null;
         if (!rawName) errors.push('Name is required');
+        if (!Number.isInteger(rawSerial) || rawSerial < 1) errors.push('Invalid serial number');
         if (isNaN(rawTotal) || rawTotal < 0) errors.push('Invalid total amount');
         if (isNaN(rawPaid) || rawPaid < 0) errors.push('Invalid paid amount');
         if (!isNaN(rawTotal) && !isNaN(rawPaid) && rawPaid > rawTotal) {
           errors.push('Paid amount exceeds total');
         }
 
-        const firstName = rawName.split(' ')[0].toLowerCase().replace(/[^a-z]/g, '');
-        const defaultPassword = firstName.length >= 3 ? `${firstName}123` : `pass1234`;
-        const autoAdmission = rawAdmission || `STU${Math.floor(1000 + Math.random() * 9000)}`;
+        const autoAdmission = rawAdmission || `IVS3-${String(rawSerial).padStart(3, '0')}`;
 
-        return {
-          row: index + 2, // +2 for header row + 0-index
+        const student: ParsedStudent = {
+          row: rawSerial,
           name: rawName,
           admission_number: autoAdmission,
-          password: defaultPassword,
+          password: '12345678',
           class_name: rawClass || undefined,
           total_amount: isNaN(rawTotal) ? 6450 : rawTotal,
           amount_paid: isNaN(rawPaid) ? 0 : rawPaid,
           errors,
         };
-      }).filter((s) => s.name); // Filter empty rows
+        return student;
+      }).filter((student): student is ParsedStudent => student !== null && Boolean(student.name));
 
       setStudents(parsed);
       setStep('preview');
@@ -244,6 +250,13 @@ export default function ImportPage() {
             )}
           </div>
 
+          <div className="rounded-[var(--radius-lg)] border border-[var(--color-warning)]/30 bg-[var(--color-warning-bg)] px-4 py-3">
+            <p className="text-sm font-semibold text-[var(--color-text)]">Credential update</p>
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+              Importing will set every listed student&apos;s password to <span className="font-mono font-semibold">12345678</span> and update their admission-number login. Share this temporary password securely.
+            </p>
+          </div>
+
           {/* Preview Table */}
           <Card padding="none">
             <div className="overflow-x-auto">
@@ -305,7 +318,7 @@ export default function ImportPage() {
               disabled={validCount === 0}
               className="flex-1"
             >
-              Import {validCount} Students
+              Sync {validCount} Student Logins
             </Button>
           </div>
         </div>
@@ -337,7 +350,7 @@ export default function ImportPage() {
           </div>
           <h3 className="text-lg font-semibold text-[var(--color-text)] mb-1">Import Complete!</h3>
           <p className="text-sm text-[var(--color-text-secondary)] mb-6">
-            Successfully imported {importedCount} students with payment data.
+            Successfully synced {importedCount} student profiles and login credentials. Password: <span className="font-mono font-semibold">12345678</span>
           </p>
           <div className="flex gap-3 justify-center">
             <Button variant="secondary" icon={<Download className="w-4 h-4" />} onClick={exportCredentials}>
